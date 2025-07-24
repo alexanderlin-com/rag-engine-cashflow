@@ -51,51 +51,51 @@ prompt = st.chat_input("How are you?")
 
 # did the user submit a prompt?
 if prompt:
-
-    # add the message from the user (prompt) to the screen with streamlit
+    # Add user message to the session state and display it
+    st.session_state.messages.append(HumanMessage(prompt))
     with st.chat_message("user"):
         st.markdown(prompt)
 
-        st.session_state.messages.append(HumanMessage(prompt))
+    # --- This is where the real work happens ---
 
-    # initialize the llm
-    llm = ChatOpenAI(
-        model="gpt-4o",
-        temperature=1
-    )
+    # 1. Initialize the LLM (you can even do this once outside the loop)
+    llm = ChatOpenAI(model="gpt-4o", temperature=0.7) # Temp 1 is for creative writing, not Q&A. Control it.
 
-    # creating and invoking the retriever
+    # 2. Create the retriever
     retriever = vector_store.as_retriever(
         search_type="similarity_score_threshold",
-        search_kwargs={"k": 3, "score_threshold": 0.5},
+        search_kwargs={"k": 5, "score_threshold": 0.5}, # K=3 is weak. Let's try 5.
     )
 
+    # 3. Retrieve context FOR THIS PROMPT ONLY
     docs = retriever.invoke(prompt)
     docs_text = "".join(d.page_content for d in docs)
 
-    # creating the system prompt
-    system_prompt = """You are an assistant for question-answering tasks.
+    # 4. Create the one-time system prompt
+    system_prompt_template = """You are an assistant for question-answering tasks.
     Use the following pieces of retrieved context to answer the question.
     If you don't know the answer, just say that you don't know.
     Elaborate on the answer with all relevant details from the provided context.
-    Context: {context}:"""
+    Context: {context}
 
-    # Populate the system prompt with the retrieved context
-    system_prompt_fmt = system_prompt.format(context=docs_text)
+    Now, answer the following question based on the context above:"""
+    
+    system_prompt = system_prompt_template.format(context=docs_text)
+
+    # 5. Create the message payload FOR THIS INVOCATION ONLY
+    # DO NOT append the system prompt to the session state.
+    messages_for_llm = [
+        SystemMessage(content=system_prompt),
+    ]
+    # Add the last few messages from history for conversational context, if you want.
+    # For now, let's just add the most recent human message.
+    messages_for_llm.append(HumanMessage(prompt))
 
 
-    print("-- SYS PROMPT --")
-    print(system_prompt_fmt)
+    # 6. Invoke the LLM with the clean, temporary payload
+    result = llm.invoke(messages_for_llm).content
 
-    # adding the system prompt to the message history
-    st.session_state.messages.append(SystemMessage(system_prompt_fmt))
-
-    # invoking the llm
-    result = llm.invoke(st.session_state.messages).content
-
-    # adding the response from the llm to the screen (and chat)
+    # 7. Add only the AI's response to the session state and display it
+    st.session_state.messages.append(AIMessage(result))
     with st.chat_message("assistant"):
         st.markdown(result)
-
-        st.session_state.messages.append(AIMessage(result))
-
