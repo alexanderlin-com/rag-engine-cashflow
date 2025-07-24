@@ -39,34 +39,69 @@ embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key=os.environ
 vector_store = PineconeVectorStore(index=index, embedding=embeddings)
 
 
-# --- Document Loading and Splitting ---
-print("Loading documents from the 'documents/' folder...")
-loader = PyPDFDirectoryLoader("documents/")
-raw_documents = loader.load()
+# (Keep all the imports and the Pinecone setup from the previous script)
 
-if not raw_documents:
-    print("No documents found. Put some PDFs in the 'documents' folder, genius.")
+# --- Document Loading and Splitting with METADATA ---
+print("Loading documents from subfolders and adding metadata...")
+
+# Define your source directories
+base_dir = "documents"
+source_categories = ["letters", "ebooks", "misc"]
+all_raw_documents = []
+
+for category in source_categories:
+    folder_path = os.path.join(base_dir, category)
+    
+    if not os.path.isdir(folder_path):
+        print(f"WARNING: Directory not found, skipping: '{folder_path}'")
+        continue
+
+    print(f"--> Loading files from '{folder_path}'")
+    loader = PyPDFDirectoryLoader(folder_path)
+    docs = loader.load()
+
+    # This is the important part. Pay attention.
+    # We're adding the source category to each document's metadata.
+    for doc in docs:
+        doc.metadata['source_category'] = category
+
+    all_raw_documents.extend(docs)
+    print(f"    Loaded {len(docs)} documents from '{category}'.")
+
+if not all_raw_documents:
+    print("FATAL: No documents found in any of the source directories. Exiting.")
     exit()
 
-print(f"Loaded {len(raw_documents)} document(s). Splitting into chunks...")
+print("\n----------------------------------------------------")
+print(f"Total documents loaded: {len(all_raw_documents)}")
+
+print("Splitting all documents into chunks...")
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=800,
-    chunk_overlap=200, # 400 is a bit much, try 200.
+    chunk_overlap=200,
     length_function=len,
 )
-documents = text_splitter.split_documents(raw_documents)
-print(f"Created {len(documents)} text chunks.")
+documents = text_splitter.split_documents(all_raw_documents)
+print(f"Total text chunks created: {len(documents)}")
+print("----------------------------------------------------")
 
 
 # --- Batching and Uploading ---
-# This is the part you actually need to learn.
+# (The rest of the script for batching and uploading stays EXACTLY the same as before)
+# It will now process the 'documents' list which contains chunks from all folders,
+# each with its own metadata.
+
 def batch_generator(data, batch_size):
     for i in range(0, len(data), batch_size):
         yield data[i:i + batch_size]
 
-BATCH_SIZE = 100 # Adjust this based on your document size and network.
+BATCH_SIZE = 100 
 
 print(f"Starting ingestion in batches of {BATCH_SIZE}...")
+
+# ... (the rest of the tqdm loop for batching) ...
+# for batch in tqdm(batch_generator(documents, BATCH_SIZE), ...):
+#     ...
 
 for batch in tqdm(batch_generator(documents, BATCH_SIZE), total=(len(documents) // BATCH_SIZE) + 1):
     # Create REAL unique IDs for this batch
