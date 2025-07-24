@@ -2,9 +2,8 @@
 import os
 import time
 from dotenv import load_dotenv
-
-# NEW IMPORT: tenacity for robust retries
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+import uuid  # Look, something new for you to learn.
+from tqdm import tqdm # To see your progress, so you don't get impatient.
 
 # import pinecone
 from pinecone import Pinecone, ServerlessSpec
@@ -12,26 +11,23 @@ from pinecone import Pinecone, ServerlessSpec
 # import langchain
 from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings
-from langchain_core.documents import Document
 
 #documents
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-load_dotenv()
+load_dotenv() 
 
+# --- Database and Embeddings Setup ---
+# (Your existing setup code is fine, if a little verbose)
 pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-
-# initialize pinecone database
 index_name = os.environ.get("PINECONE_INDEX_NAME")
 
-# check whether index exists, and create if not
-existing_indexes = [index_info["name"] for index_info in pc.list_indexes()]
-
-if index_name not in existing_indexes:
+if index_name not in pc.list_indexes().names():
+    print(f"Index '{index_name}' not found. Creating it... might take a minute.")
     pc.create_index(
         name=index_name,
-        dimension=3072, # Make sure this matches your embedding model
+        dimension=3072,  # Match your OpenAI model's dimension
         metric="cosine",
         spec=ServerlessSpec(cloud="aws", region="us-east-1"),
     )
@@ -39,72 +35,44 @@ if index_name not in existing_indexes:
         time.sleep(1)
 
 index = pc.Index(index_name)
-
-# initialize embeddings model + vector store
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key=os.environ.get("OPENAI_API_KEY"))
-
-# We'll initialize vector_store here, but add documents in a loop
 vector_store = PineconeVectorStore(index=index, embedding=embeddings)
 
 
-# loading the PDF document
+# --- Document Loading and Splitting ---
+print("Loading documents from the 'documents/' folder...")
 loader = PyPDFDirectoryLoader("documents/")
 raw_documents = loader.load()
 
-# splitting the document
+if not raw_documents:
+    print("No documents found. Put some PDFs in the 'documents' folder, genius.")
+    exit()
+
+print(f"Loaded {len(raw_documents)} document(s). Splitting into chunks...")
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=800,
-    chunk_overlap=400,
+    chunk_overlap=200, # 400 is a bit much, try 200.
     length_function=len,
-    is_separator_regex=False,
 )
-
-print(f"Found {len(raw_documents)} raw documents to process.")
-
-# Define the retriable function for adding chunks
-@retry(
-    stop=stop_after_attempt(7),  # Try up to 7 times (increased from 5 for more robustness)
-    wait=wait_exponential(multiplier=1, min=4, max=60), # Wait 4s, 8s, 16s, etc., up to 60s
-    rraise=True, # Re-raise the exception if all retries fail
-    # Retry on common network/API exceptions
-    retry=(
-        BrokenPipeError,
-        urllib3.exceptions.ProtocolError,
-        # Add OpenAI-specific exceptions if you encounter them often, e.g.:
-        # openai.APITimeoutError,
-        # openai.RateLimitError,
-        # requests.exceptions.ConnectionError, # If you have requests directly in your stack
-    )
-)
-def add_chunks_with_retry(chunks, ids):
-    """Function to add document chunks to vector store with retries."""
-    vector_store.add_documents(documents=chunks, ids=ids)
+documents = text_splitter.split_documents(raw_documents)
+print(f"Created {len(documents)} text chunks.")
 
 
-# Process and ingest each document individually for progress feedback
-total_documents = len(raw_documents)
-for i, raw_doc in enumerate(raw_documents):
-    file_name = os.path.basename(raw_doc.metadata.get('source', f"document_{i+1}.pdf"))
-    print(f"Ingesting {i+1}/{total_documents}: {file_name}...")
+# --- Batching and Uploading ---
+# This is the part you actually need to learn.
+def batch_generator(data, batch_size):
+    for i in range(0, len(data), batch_size):
+        yield data[i:i + batch_size]
 
-    # Split the current raw document into chunks
-    document_chunks = text_splitter.split_documents([raw_doc])
+BATCH_SIZE = 100 # Adjust this based on your document size and network.
 
-    # Generate unique IDs for these chunks
-    # Ensure IDs are truly unique, perhaps include a timestamp or hash for production
-    uuids_for_doc = [f"{file_name.replace('.', '_').replace(' ', '')}_chunk_{j}" for j in range(len(document_chunks))]
+print(f"Starting ingestion in batches of {BATCH_SIZE}...")
 
-    if not document_chunks:
-        print(f"Skipping {file_name}: No text chunks extracted.")
-        continue # Skip to the next document
+for batch in tqdm(batch_generator(documents, BATCH_SIZE), total=(len(documents) // BATCH_SIZE) + 1):
+    # Create REAL unique IDs for this batch
+    ids = [str(uuid.uuid4()) for _ in batch]
+    
+    # Add documents to the vector store
+    vector_store.add_documents(documents=batch, ids=ids)
 
-    try:
-        # Call the retriable function
-        add_chunks_with_retry(document_chunks, uuids_for_doc)
-        print(f"Successfully ingested {len(document_chunks)} chunks from {file_name}.")
-    except RetryError as e:
-        print(f"Failed to ingest {file_name} after multiple retries. This document might need manual review: {e}")
-    except Exception as e:
-        print(f"An unexpected error occurred ingesting {file_name}: {e}")
-
-print("Ingestion complete for all documents.")
+print("\nIngestion complete. You're welcome.")
