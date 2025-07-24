@@ -36,7 +36,7 @@ if "messages" not in st.session_state:
     st.session_state.messages.append(SystemMessage("You are an assistant for question-answering tasks. "))
 
     # This is the message the user will see from the bot when they open the app
-    st.session_state.messages.append(AIMessage("Hello! I'm Alexander's RAG assistant! Ask me anything about Alexander Lin."))
+    st.session_state.messages.append(AIMessage("Hello! I'm your friendly neighborhood Cashflow Depot RAG assistant! Ask me anything related to the Commonwealth Letters, Jack Miller's techniques, or any related topics!"))
 # display chat messages from history on app rerun
 for message in st.session_state.messages:
     if isinstance(message, HumanMessage):

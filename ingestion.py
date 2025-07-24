@@ -61,7 +61,7 @@ print("Loading documents from subfolders and adding metadata...")
 
 # Define your source directories
 base_dir = "documents"
-source_categories = ["letters", "ebooks", "misc"]
+source_categories = ["Commonwealth Letters", "Ebooks", "Other"]
 all_raw_documents = []
 
 for category in source_categories:
