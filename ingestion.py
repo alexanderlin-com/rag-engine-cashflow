@@ -16,8 +16,23 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-load_dotenv() 
+load_dotenv()
 
+# --- Pre-flight Check ---
+print("Running pre-flight checks...")
+required_vars = ["PINECONE_API_KEY", "PINECONE_INDEX_NAME", "OPENAI_API_KEY"]
+missing_vars = [var for var in required_vars if not os.environ.get(var)]
+
+if missing_vars:
+    print(f"FATAL: Missing required environment variables: {', '.join(missing_vars)}")
+    print("Fix your .env file before you waste my time again.")
+    exit()
+
+print("All checks passed. Let's do this.")
+print("----------------------------------------------------")
+
+# --- Database and Embeddings Setup ---
+# (The rest of your script follows here)
 # --- Database and Embeddings Setup ---
 # (Your existing setup code is fine, if a little verbose)
 pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
