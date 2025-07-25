@@ -14,7 +14,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 load_dotenv()
 
-st.title("Chatbot")
+st.title("Cashflow Depot Chatbot")
 
 # initialize pinecone database
 pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
