@@ -53,3 +53,36 @@ Pinecone ain’t free. If you’re iterating, you *need* index deletion on comma
 
 ## 📂 Folder Structure
 
+
+📁 rag-agent/
+├── chatbot.py
+├── ingestion.py
+├── deingestion.py
+├── requirements.txt
+├── .env
+└── ...
+
+
+
+---
+
+## 🛠️ Setup & Run
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/yourusername/rag-agent
+cd rag-agent
+
+# 2. Set up your environment
+cp .env.example .env  # then fill in OpenAI & Pinecone keys
+
+# 3. Ingest your docs
+python ingestion.py
+
+# 4. Run the chatbot
+streamlit run chatbot.py
+
+# Nuking the Index (Optional)
+python deingestion.py
+```
+Because sometimes you just want to burn it all down.
