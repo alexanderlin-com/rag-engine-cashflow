@@ -12,7 +12,7 @@ A Retrieval-Augmented Generation (RAG) chatbot powered by:
 - **OpenAI** for LLM output  
 - **Streamlit** for frontend  
 
-Forked from [original tutorial repo link], then *modified like hell* to work with real-world doc loads (300+ PDFs), forward-compatible Python versions, and tighter dev loops.
+Forked from [LangChain-Pinecone-RAG](https://github.com/ThomasJanssen-tech/LangChain-Pinecone-RAG/tree/main), then *modified like hell* to work with real-world doc loads (300+ PDFs), forward-compatible Python versions, and tighter dev loops.
 
 ---
 
