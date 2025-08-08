@@ -41,8 +41,9 @@ jobs:
           docker build --platform linux/amd64 -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:latest .
           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:latest
 
+
       - name: Deploy to Cloud Run
-        # This is the final step. It deploys the new image from the registry to Cloud Run.
+        # This is the final step. It deploys the new image AND injects the secrets as environment variables.
         run: |-
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:latest \
@@ -50,4 +51,7 @@ jobs:
             --port 8501 \
             --allow-unauthenticated \
             --min-instances 0 \
-            --max-instances 2
+            --max-instances 2 \
+            --set-env-vars="PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}"
+
+
