@@ -1,0 +1,53 @@
+# The name of your automated workflow, which will appear in the GitHub Actions tab.
+name: Deploy to Google Cloud Run
+
+# This section defines the trigger for the workflow.
+# We're telling it to run automatically on every push to the 'main' branch.
+on:
+  push:
+    branches:
+      - main
+
+# These are environment variables available to all jobs in this workflow.
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: cashflow-depot-rag  # The name for your Cloud Run service.
+  REGION: us-central1             # The region for your service and registry.
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest # The job will run on a fresh Linux virtual machine.
+
+    steps:
+      - name: Checkout code
+        # This step checks out your repository's code so the workflow can use it.
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        # This step logs into GCP using the Service Account key you stored as a secret.
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Configure Docker
+        # This step configures the Docker client to authenticate with Google Artifact Registry.
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and Push Docker Image
+        # This step builds your image for the correct platform and pushes it to Artifact Registry.
+        # Notice how we're using the environment variables to construct the full image name.
+        run: |-
+          docker build --platform linux/amd64 -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:latest .
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        # This is the final step. It deploys the new image from the registry to Cloud Run.
+        run: |-
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:latest \
+            --region ${{ env.REGION }} \
+            --port 8501 \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 2
