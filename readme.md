@@ -48,3 +48,33 @@ The default prompt gave me canned garbage. I rewrote it to force thoughtful, lon
 
 ### ✅ De-Ingestion Script  
 Pinecone ain’t free. If you’re iterating, you *need* index deletion on command. So I made it easy.
+
+
+
+
+## Instructions (for myself) because I need em.
+
+1. Local Development Setup
+
+    Create Virtual Environment (Only do this once per project):
+    ```python3 -m venv venv```
+
+Activate Virtual Environment (Do this every time you open a new terminal for the project):
+    ```source venv/bin/activate```
+
+Install Dependencies:
+    ```pip install -r requirements.txt```
+
+2. Running Locally with Docker
+
+    Build the Docker Image:
+    ```docker build -t cashflow-depot-rag .```
+
+Run the Container:
+    ```docker run --rm -p 8501:8501 --env-file .env cashflow-depot-rag```
+
+3. Deployment
+
+    Automated Deployment:
+
+        Push your changes to the main branch on GitHub. The GitHub Actions pipeline will handle the rest automatically.
