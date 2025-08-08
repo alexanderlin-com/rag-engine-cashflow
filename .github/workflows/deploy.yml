@@ -1,4 +1,4 @@
-# The name of your automated workflow, which will appear in the GitHub Actions tab.
+# The name of your automated workflow, which will appear in the GitHub Actions tab. 
 name: Deploy to Google Cloud Run
 
 # This section defines the trigger for the workflow.
