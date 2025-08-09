@@ -1,39 +1,51 @@
-# import basics
+# main.py
+
 import os
+from fastapi import FastAPI
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# import pinecone
-from pinecone import Pinecone, ServerlessSpec
+# --- All your other imports go here (langchain, pinecone, etc.) ---
 
-# import langchain
-from langchain_pinecone import PineconeVectorStore
-from langchain_openai import OpenAIEmbeddings
-from langchain_core.documents import Document
 
+# Load environment variables from .env file
 load_dotenv()
 
-# initialize pinecone database
-pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+# --- Initialize Clients & Models (Global Scope) ---
+# This is where you'll set up Pinecone, your LLM, and your embeddings model.
+# This code runs once when the server starts.
+# Example:
+# llm = ChatOpenAI(...)
+# pinecone_index = ...
 
-# set the pinecone index
 
-index_name = os.environ.get("PINECONE_INDEX_NAME") 
-index = pc.Index(index_name)
+# --- Data Models ---
+class ChatRequest(BaseModel):
+    question: str
 
-# initialize embeddings model + vector store
+# --- FastAPI App Instance ---
+app = FastAPI()
 
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large",api_key=os.environ.get("OPENAI_API_KEY"))
-vector_store = PineconeVectorStore(index=index, embedding=embeddings)
 
-# retrieval
-retriever = vector_store.as_retriever(
-    search_type="similarity_score_threshold",
-    search_kwargs={"k": 5, "score_threshold": 0.5},
-)
-results = retriever.invoke("what is retrieval augmented generation?")
+# --- API Endpoints ---
+@app.get("/")
+def read_root():
+    return {"status": "online"}
 
-# show results
-print("RESULTS:")
 
-for res in results:
-    print(f"* {res.page_content} [{res.metadata}]")
+@app.post("/chat")
+def process_chat(request: ChatRequest):
+    # Your core RAG logic goes here.
+    # You'll use the initialized clients from the global scope.
+    # The user's input is `request.question`.
+
+    # For now, just aim to get a final answer string.
+    # We'll deal with streaming later.
+    
+    # result = your_rag_chain.invoke(request.question)
+    # final_answer = result['answer']
+    
+    # return {"answer": final_answer}
+
+    # For now, just return a success message until you wire it up.
+    return {"answer": f"The RAG logic for '{request.question}' will run here."}
