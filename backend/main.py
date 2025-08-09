@@ -6,6 +6,7 @@ from typing import List, Dict
 from operator import itemgetter
 
 # --- Library Imports ---
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -47,6 +48,14 @@ class ChatRequest(BaseModel):
 
 # --- FASTAPI APP INSTANCE ---
 app = FastAPI()
+# This is the CORS middleware that gives your frontend permission to talk to the API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # The origin of your SvelteKit dev server
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
 
 
 # --- API ENDPOINTS ---

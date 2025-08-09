@@ -185,4 +185,33 @@ Delete ```github-key.json``` from your computer.
 8. Push to ```main``` and watch the magic happen in the Actions tab.
 
 ---
+# New Notes
+## The Permanent Workflow
 
+From now on, this is how you work on this project. You have two separate applications, so you need two separate terminals.
+
+### Terminal 1: The Backend
+
+```
+# 1. Go to the backend directory
+cd /path/to/your/Cashflow-Depot-RAG/backend
+
+# 2. Activate the virtual environment
+source venv/bin/activate
+
+# 3. Run the server using the correct, explicit command
+python3 -m uvicorn main:app --reload
+```
+###  Terminal 2: The Frontend
+
+```
+# 1. Go to the frontend directory
+cd /path/to/your/Cashflow-Depot-RAG/frontend
+
+# 2. Run the development server
+npm run dev
+```
+
+You need both of these running at the same time for the full application to work.
+
+Now, kill your backend server. Go to the ```backend``` directory. Activate the ```venv```. And run the correct command.
