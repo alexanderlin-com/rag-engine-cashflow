@@ -1,3 +1,4 @@
+import { marked } from 'marked';
 <script lang="ts">
   // A type definition for our message structure. This is good TypeScript practice.
   type Message = {
@@ -66,7 +67,7 @@
     {#each chatHistory as message}
       <div class="mb-4 {message.role === 'user' ? 'text-right' : 'text-left'}">
         <span class="inline-block px-4 py-2 rounded-lg {message.role === 'user' ? 'bg-blue-600' : 'bg-gray-600'}">
-          {message.content}
+          {@html marked(message.content)}
         </span>
       </div>
     {/each}
