@@ -1,10 +1,6 @@
 .env
 venv
+backend/venv
+backend/documents/
+backend/__pycache__/
 .DS_Store
-documents/
-.env
-venv/
-__pycache__/
-*.pyc
-.streamlit/
-documents/
