@@ -3,7 +3,7 @@
 
 ---
 
-## 🚀 What This Is
+## 🚀 What This Was
 
 A Retrieval-Augmented Generation (RAG) chatbot powered by:
 
@@ -49,20 +49,16 @@ The default prompt gave me canned garbage. I rewrote it to force thoughtful, lon
 ### ✅ De-Ingestion Script  
 Pinecone ain’t free. If you’re iterating, you *need* index deletion on command. So I made it easy.
 
+---
+
+# That was where this project ended. But then I realized the weakness of Streamlit Cloud Free and it disgusted me. 
+
 ### ✅ Changed Hosting to Docker+ Google Cloud Run
 Streamlit Cloud Free is hard to rely on.
 
+## New Technology Stack
 
-
-# Cashflow Depot RAG Chatbot
-
-## Project Overview
-
-This is a RAG (Retrieval-Augmented Generation) chatbot designed to answer questions based on a curated knowledge base of financial documents, specifically [Mention the source documents like The Commonwealth Letters, etc.]. It is built with Python, containerized with Docker, and deployed on Google Cloud Run through an automated CI/CD pipeline.
-
-## Technology Stack
-
-* **Language:** Python 3.11
+* **Language:** Python 3.11 
 * **LLM Framework:** LangChain
 * **Frontend:** Streamlit
 * **Vector Database:** Pinecone
@@ -116,13 +112,13 @@ This project is configured with a GitHub Actions workflow that automates deploym
 
 The pipeline performs the following steps:
 
-    1. Authenticates to Google Cloud using a secure Service Account.
+1. Authenticates to Google Cloud using a secure Service Account.
 
-    2. Builds the Docker image for a ```linux/amd64``` platform.
+2. Builds the Docker image for a ```linux/amd64``` platform.
 
-    3. Pushes the new image to Google Artifact Registry.
+3. Pushes the new image to Google Artifact Registry.
 
-    4. Deploys the new image as a new revision to the Cloud Run service, injecting the necessary API keys from GitHub Secrets.
+4. Deploys the new image as a new revision to the Cloud Run service, injecting the necessary API keys from GitHub Secrets.
 
 ## Instructions for Deploying a New, Similar Project
 
