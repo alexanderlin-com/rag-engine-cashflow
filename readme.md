@@ -49,6 +49,8 @@ The default prompt gave me canned garbage. I rewrote it to force thoughtful, lon
 ### ✅ De-Ingestion Script  
 Pinecone ain’t free. If you’re iterating, you *need* index deletion on command. So I made it easy.
 
+### ✅ Changed Hosting to Docker+ Google Cloud Run
+Streamlit Cloud Free is hard to rely on.
 
 
 
