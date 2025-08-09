@@ -81,10 +81,14 @@ Instructions for running the application on your local machine.
 python3 -m venv venv
 ```
 **Activate Virtual Environment** (do this every time you open a new terminal for the project):
-```source venv/bin/activate```
+```
+source venv/bin/activate
+```
 
 **Install Dependencies:**
-```pip install -r requirements.txt```
+```
+pip install -r requirements.txt
+```
 
 **Environment Variables:**
 Copy the ```.env.example``` file to a new file named ```.env``` and fill in your API keys.
@@ -133,15 +137,21 @@ gcloud projects create YOUR_NEW_PROJECT_ID
 gcloud config set project YOUR_NEW_PROJECT_ID
 ```
 **2. Enable Required APIs.**
-```gcloud services enable artifactregistry.googleapis.com run.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com```
+```
+gcloud services enable artifactregistry.googleapis.com run.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com
+```
 
 **3. Create an Artifact Registry Repository.**
-```gcloud artifacts repositories create your-new-repo-name --repository-format=docker --location=us-central1```
+```
+gcloud artifacts repositories create your-new-repo-name --repository-format=docker --location=us-central1
+```
 
 **4. Create a Service Account.**
-```gcloud iam service-accounts create github-actions-runner --display-name="GitHub Actions Runner"```
+```
+gcloud iam service-accounts create github-actions-runner --display-name="GitHub Actions Runner"
+```
 
-**5. Grant the Service Account Permissions. (```Replace YOUR_NEW_PROJECT_ID``` with the actual ID).**
+**5. Grant the Service Account Permissions. (Replace ```YOUR_NEW_PROJECT_ID``` with the actual ID).**
 ```
 PROJECT_ID=YOUR_NEW_PROJECT_ID
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:github-actions-runner@$PROJECT_ID.iam.gserviceaccount.com" --role="roles/artifactregistry.writer"
@@ -156,7 +166,7 @@ gcloud iam service-accounts keys create github-key.json --iam-account="github-ac
 ```
 - Go to your new GitHub repo's Settings > Secrets and variables > Actions and create the following secrets:
 
-    - ```GCP_SAY_KE```: Paste the entire contents of github-key.json.
+    - ```GCP_SA_KEY```: Paste the entire contents of github-key.json.
 
     - ```GCP_PROJECT_ID```: Paste your new GCP Project ID.
 
