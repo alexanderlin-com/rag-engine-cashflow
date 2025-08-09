@@ -98,7 +98,9 @@ Copy the ```.env.example``` file to a new file named ```.env``` and fill in your
 You can run the app directly with Streamlit or inside a Docker container.
 
 **With Streamlit:**
+```
 streamlit run chatbot_rag.py
+```
 
 **With Docker** (Recommended for testing the production environment):
 
