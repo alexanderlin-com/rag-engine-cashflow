@@ -1,5 +1,5 @@
-import { marked } from 'marked';
 <script lang="ts">
+  import { marked } from 'marked';
   // A type definition for our message structure. This is good TypeScript practice.
   type Message = {
     role: 'user' | 'assistant';

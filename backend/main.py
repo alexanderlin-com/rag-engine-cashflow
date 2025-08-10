@@ -51,7 +51,7 @@ app = FastAPI()
 # This is the CORS middleware that gives your frontend permission to talk to the API.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # The origin of your SvelteKit dev server
+    allow_origins=["*"],  # The origin of your SvelteKit dev server
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allows all headers
