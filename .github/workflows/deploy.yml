@@ -11,7 +11,7 @@ on:
 # These are environment variables available to all jobs in this workflow.
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: cashflow-depot-rag  # The name for your Cloud Run service.
+  SERVICE_NAME: rag-engine-cashflow  # The name for your Cloud Run service.
   REGION: us-central1             # The region for your service and registry.
 
 jobs:

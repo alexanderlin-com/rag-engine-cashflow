@@ -14,49 +14,59 @@
   let isLoading: boolean = false; // A variable to track if we're waiting for the API.
 
   // This is the function that runs when you hit "Send".
-  async function handleSubmit() {
-    // Don't do anything if the message is empty or if we're already waiting for a response.
+   async function handleSubmit() {
     if (!currentMessage.trim() || isLoading) return;
 
+    // --- Setup is the same ---
     const userMessage: Message = { role: 'user', content: currentMessage };
-    // Immediately add the user's message to the chat history for a snappy UI.
     chatHistory = [...chatHistory, userMessage];
-    
-    // Prepare the data to send to the backend.
     const question = currentMessage;
-    const historyForApi = chatHistory.slice(0, -1); // Send all messages *before* the current one.
-    
-    currentMessage = ''; // Clear the input box.
+    // We send the history *before* the user's current message and the blank assistant message.
+    const historyForApi = chatHistory.slice(0, -1); 
+    currentMessage = '';
     isLoading = true;
 
-    // Make the API call to your FastAPI backend.
+    // --- The new streaming logic starts here ---
+    // 1. Add a blank placeholder for the assistant's response.
+    chatHistory = [...chatHistory, { role: 'assistant', content: '' }];
+    
     try {
       const response = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: question,
           chat_history: historyForApi,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+      if (!response.body) {
+        throw new Error("Response has no body");
       }
 
-      const data = await response.json();
-      const assistantResponse: Message = { role: 'assistant', content: data.answer };
+      // 2. Get the tools to read the stream.
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-      // Add the AI's response to the chat history.
-      chatHistory = [...chatHistory, assistantResponse];
+      // 3. Read the stream token by token.
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          // The stream is finished.
+          break;
+        }
+        const token = decoder.decode(value);
+        // 4. Append each new token to the content of the last message in our array.
+        // Svelte's reactivity will update the UI automatically.
+        chatHistory[chatHistory.length - 1].content += token;
+      }
+
     } catch (error) {
-      const errorResponse: Message = { role: 'assistant', content: "Sorry, I've run into an error. Please try again." };
-      chatHistory = [...chatHistory, errorResponse];
-      console.error("Failed to fetch from chat API:", error);
+      // If something goes wrong, update the placeholder with an error message.
+      chatHistory[chatHistory.length - 1].content = "Sorry, I've run into an error. Please try again.";
+      console.error("Failed to fetch stream from chat API:", error);
     } finally {
-      isLoading = false; // We're done loading, whether it succeeded or failed.
+      isLoading = false; // We're done, whether it succeeded or failed.
     }
   }
 </script>
@@ -79,8 +89,16 @@
       class="flex-grow p-2 rounded-l-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
       placeholder="Ask a question..."
     />
-    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-r-lg font-bold">
-      Send
+    <button
+      type="submit"
+      class="btn btn-primary"
+      disabled={isLoading}
+    >
+      {#if isLoading}
+        <span class="loading loading-spinner"></span>
+      {:else}
+        Send
+      {/if}
     </button>
   </form>
 

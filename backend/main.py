@@ -16,6 +16,8 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from fastapi.responses import StreamingResponse
+import asyncio
 
 # --- SETUP: Load environment variables ---
 # This must run before any clients that need API keys are initialized.
@@ -65,45 +67,52 @@ def read_root():
     return {"status": "online", "message": "API is ready. Use the /chat endpoint."}
 
 
+
 @app.post("/chat")
-def process_chat(request: ChatRequest):
-    """ Processes a chat request using the RAG chain. """
-    retriever = vector_store.as_retriever()
-
-    # This is the core instruction set for the AI.
-    SYSTEM_TEMPLATE = """
-    You are a financial analyst and a helpful assistant. Your user is asking questions about investment strategies based on the provided context from a set of financial letters.
-    
-    Answer the user's question using only the provided context. If the context doesn't contain the answer, state that you don't have enough information.
-    Be thorough and provide detailed, actionable insights based on the documents.
-
-    Context:
-    {context}
+async def process_chat(request: ChatRequest):
     """
+    Processes a chat request and streams the response back token by token.
+    """
+    
+    # We create an inner async generator function. This is where the real work happens.
+    async def stream_generator():
+        retriever = vector_store.as_retriever()
 
-    # This prompt template dynamically incorporates the system message, chat history, and new input.
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_TEMPLATE),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
-    ])
+        SYSTEM_TEMPLATE = """
+        You are a financial analyst and a helpful assistant. Your user is asking questions about investment strategies based on the provided context from a set of financial letters.
+        
+        Answer the user's question using only the provided context. If the context doesn't contain the answer, state that you don't have enough information.
+        Be thorough and provide detailed, actionable insights based on the documents.
 
-    # The LangChain Expression Language (LCEL) chain.
-    rag_chain = (
-        {
-            "context": itemgetter("input") | retriever,
-            "input": itemgetter("input"),
-            "chat_history": itemgetter("chat_history"),
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
+        Context:
+        {context}
+        """
 
-    # Invoke the chain with the data from the request.
-    response = rag_chain.invoke({
-        "input": request.question,
-        "chat_history": request.chat_history
-    })
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", SYSTEM_TEMPLATE),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}"),
+        ])
 
-    return {"answer": response}
+        rag_chain = (
+            {
+                "context": itemgetter("input") | retriever,
+                "input": itemgetter("input"),
+                "chat_history": itemgetter("chat_history"),
+            }
+            | prompt
+            | llm
+            | StrOutputParser()
+        )
+
+        # Use .astream() for an asynchronous stream of response tokens.
+        async for token in rag_chain.astream({
+            "input": request.question,
+            "chat_history": request.chat_history
+        }):
+            # Yield each token as it's generated. This sends it to the client immediately.
+            yield token
+            await asyncio.sleep(0) # Allows other tasks to run if needed.
+
+    # Return a StreamingResponse, which takes our generator and serves it.
+    return StreamingResponse(stream_generator(), media_type="text/plain")
