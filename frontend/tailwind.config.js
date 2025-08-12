@@ -2,7 +2,11 @@
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['"IBM Plex Sans"', 'sans-serif'],
+      },
+    },
   },
-  plugins: [require('daisyui')], // <-- ADD THIS LINE
+  plugins: [require('daisyui')],
 }

@@ -1,14 +1,7 @@
 <script lang="ts">
-	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
-
-	let { children } = $props();
+  import '../app.css'; // This imports our Tailwind directives.
 </script>
 
-
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
-
-// {@render children?.()}
-// fdfskjio
+<div class="min-h-screen bg-white dark:bg-black text-black dark:text-white font-sans">
+  <slot />
+</div>

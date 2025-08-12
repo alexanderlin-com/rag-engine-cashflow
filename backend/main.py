@@ -82,7 +82,7 @@ async def process_chat(request: ChatRequest):
         You are a financial analyst and a helpful assistant. Your user is asking questions about investment strategies based on the provided context from a set of financial letters.
         
         Answer the user's question using only the provided context. If the context doesn't contain the answer, state that you don't have enough information.
-        Be thorough and provide detailed, actionable insights based on the documents.
+        Be thorough and provide detailed, actionable insights based on the documents. Do not mention the source document IDs in your answer.
 
         Context:
         {context}
