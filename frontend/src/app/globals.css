@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Light/Dark theme via CSS variables (v4-friendly) */
+:root {
+  --bg: #FAFAFA;       /* light background */
+  --fg: #0A0A0A;       /* light text */
+  --bubble: #EDEDED;   /* light user bubble */
+}
+
+.dark {
+  --bg: #0A0A0A;       /* dark background */
+  --fg: #FAFAFA;       /* dark text */
+  --bubble: #1E1E1E;   /* dark user bubble */
+}
+
+/* Base styles */
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Utility hooks for later */
+.bubble {
+  background: var(--bubble);
+}
