@@ -11,7 +11,7 @@ on:
 # These are environment variables available to all jobs in this workflow.
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: cashflow-depot-rag  # The name for your Cloud Run service.
+  SERVICE_NAME: rag-engine-cashflow  # The name for your Cloud Run service.
   REGION: us-central1             # The region for your service and registry.
 
 jobs:
@@ -55,3 +55,4 @@ jobs:
             --set-env-vars="PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}"
 
 
+`
