@@ -6,7 +6,7 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: rag-engine-cashflow
+  SERVICE_NAME: cashflow-depot-rag
   REGION: us-central1
 
 jobs:
