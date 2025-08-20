@@ -1,6 +1,9 @@
 # Use a lean, mean Python base image. No bloat.
 FROM python:3.11-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 # Set the working directory inside the container. This is your gym.
 WORKDIR /app
 
@@ -25,4 +28,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # This is how you run the damn thing.
 # The --server.address=0.0.0.0 part is non-negotiable. It makes the app listen
 # to requests from outside the container, not just from itself.
-CMD ["streamlit", "run", "chatbot_rag.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
