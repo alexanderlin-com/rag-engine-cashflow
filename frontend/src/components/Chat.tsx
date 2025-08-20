@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-
+import type { DetailedHTMLProps, HTMLAttributes } from 'react'
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
@@ -16,24 +16,34 @@ const LoadingIndicator = () => (
   </div>
 )
 
+
+type CodeProps = {
+  inline?: boolean
+  className?: string
+  children?: React.ReactNode
+} & DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+
 const mdComponents: Components = {
-  a: ({ node, ...props }) => (
-    <a {...props} target="_blank" rel="noreferrer" />
-  ),
-  code: ({ node, inline, className, children, ...props }: any) => {
+  a: ({ ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+  code: ({ inline, className, children, ...props }: CodeProps) => {
     if (inline) {
       return (
-        <code className="px-1 py-0.5 rounded bg-[var(--bubble)] border border-[var(--composer-border)]">
+        <code
+          {...props}
+          className="px-1 py-0.5 rounded bg-[var(--bubble)] border border-[var(--composer-border)]"
+        >
           {children}
         </code>
       )
     }
     return (
       <pre className="p-3 rounded-lg bg-[var(--bubble)] border border-[var(--composer-border)] overflow-x-auto">
-        <code className={className}>{children}</code>
+        <code {...props} className={className}>
+          {children}
+        </code>
       </pre>
     )
-  },
+  }
 }
 
 // This is our smart interpreter. It fixes the AI's lazy markdown.
