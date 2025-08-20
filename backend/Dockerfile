@@ -8,14 +8,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Copy the list of what you need...
-COPY requirements.txt .
+COPY backend/requirements.txt .
 
 # ...then install it. Use --no-cache-dir to keep the image small.
 # Don't be sloppy.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Now copy the rest of your code in.
-COPY . .
+COPY backend/. .
 
 # Tell the world what door to knock on. Streamlit lives on 8501.
 EXPOSE 8501
