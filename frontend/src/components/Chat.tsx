@@ -1,104 +1,148 @@
 'use client'
-import { useState, useRef } from 'react'
+
+import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown, { Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
+// This is the "thinking" animation.
+const LoadingIndicator = () => (
+  <div className="flex items-center justify-center space-x-2">
+    <div className="h-2 w-2 bg-neutral-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+    <div className="h-2 w-2 bg-neutral-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+    <div className="h-2 w-2 bg-neutral-400 rounded-full animate-pulse"></div>
+  </div>
+)
+
+const mdComponents: Components = {
+  a: ({ node, ...props }) => (
+    <a {...props} target="_blank" rel="noreferrer" />
+  ),
+  code: ({ node, inline, className, children, ...props }: any) => {
+    if (inline) {
+      return (
+        <code className="px-1 py-0.5 rounded bg-[var(--bubble)] border border-[var(--composer-border)]">
+          {children}
+        </code>
+      )
+    }
+    return (
+      <pre className="p-3 rounded-lg bg-[var(--bubble)] border border-[var(--composer-border)] overflow-x-auto">
+        <code className={className}>{children}</code>
+      </pre>
+    )
+  },
+}
+
+// This is our smart interpreter. It fixes the AI's lazy markdown.
+function normalizeMarkdown(raw: string): string {
+  let text = raw;
+
+  // Rule 1: Convert standalone bold lines into Level 2 Headings. (Kept from before)
+  text = text.replace(/^\*\*(.*?)\*\*$/gm, '## $1');
+
+  // Rule 2 (NEW): Convert bolded term/definition pairs into a bulleted list.
+  // This looks for any line that starts with `**Word:**` and automatically
+  // prepends a `*` to turn it into a proper list item.
+  text = text.replace(/^(\s*)\*\*(.*?):\*\*/gm, '$1* **$2:**');
+
+  // Rule 3: Ensure there's a blank line before a list starts.
+  // This helps separate the list from the preceding paragraph.
+  text = text.replace(/(\n\n\s*)(\* |1\. )/g, '$1\n$2');
+
+  return text;
+}
+
+
 export default function Chat() {
   const [messages, setMessages] = useState<Msg[]>([])
-  const [input, setInput] = useState<string>('')
-  const [loading, setLoading] = useState<boolean>(false)
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const aiIndexRef = useRef<number | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   async function handleSend() {
     if (!input.trim() || loading) return
-    const text = input
+
+    const text = input.trim()
     setInput('')
     setLoading(true)
 
     const userMsg: Msg = { role: 'user', content: text }
-    setMessages(m => [...m, userMsg])
-
-    // reserve slot for assistant reply
-    const aiIndex = messages.length + 1
-    setMessages(m => [...m, { role: 'assistant', content: '' }])
+    setMessages((prev): Msg[] => {
+      const next = [...prev, userMsg, { role: 'assistant' as const, content: '' }]
+      aiIndexRef.current = next.length - 1
+      return next
+    })
 
     try {
-      const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }))
+      const history = [...messages, userMsg]
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: text, chat_history: history }),
+        body: JSON.stringify({
+          question: text,
+          chat_history: history.map(({ role, content }) => ({ role, content })),
+        }),
       })
       if (!res.ok || !res.body) throw new Error(`API ${res.status}`)
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
 
-      // Streaming state
       let done = false
-      let buffer = ''       // holds partial line between reads (for SSE)
-      let accum = ''        // full text we’ve decided to show (idempotent)
+      let buffer = ''
+      let accum = ''
 
-      // Helper: commit current accum to UI
       const commit = () => {
-        setMessages(curr => {
-          const next = [...curr]
-          const msg = next[aiIndex] ?? { role: 'assistant', content: '' }
-          msg.content = accum
-          next[aiIndex] = msg
+        const idx = aiIndexRef.current
+        if (idx == null) return
+        setMessages((curr) => {
+          if (!curr[idx]) return curr
+          const next = curr.slice()
+          next[idx] = { role: 'assistant' as const, content: accum }
           return next
         })
       }
 
-      // Normalize very obvious immediate word doubles at boundaries
-      function dedupeBoundary(a: string, b: string): string {
-        // if b starts with the last word of a repeated, trim one
-        const tail = a.split(/\s+/).slice(-3).join(' ')
-        if (tail && b.startsWith(tail)) {
-          // try the longest overlap first
-          for (let n = Math.min(3, tail.split(' ').length); n >= 1; n--) {
-            const piece = tail.split(' ').slice(-n).join(' ')
-            if (b.startsWith(piece)) {
-              return b.slice(piece.length)
-            }
+      function mergeWithOverlap(existing: string, incoming: string): string {
+        if (!existing) return incoming
+        if (incoming.startsWith(existing)) return incoming
+        if (existing.startsWith(incoming)) return existing
+
+        const max = Math.min(512, existing.length, incoming.length)
+        const a = existing.slice(-max)
+        const b = incoming.slice(0, max)
+        for (let i = max; i > 0; i--) {
+          if (a.slice(-i) === b.slice(0, i)) {
+            return existing + incoming.slice(i)
           }
         }
-        return b
+        return existing + incoming
       }
 
-      // Process one logical payload (raw text or parsed JSON.content)
-      function onPayload(payload: string) {
-        let incoming = payload
-
-        // If the backend sends JSON frames, prefer "content"
+      function extractContent(raw: string): string {
         try {
-          const j = JSON.parse(payload)
-          if (typeof j?.content === 'string') incoming = j.content
-        } catch { /* not JSON, ignore */ }
+          const j = JSON.parse(raw)
+          if (typeof j?.content === 'string') return j.content
+          if (typeof j?.delta === 'string') return j.delta
+          if (typeof j?.text === 'string') return j.text
+        } catch { /* not JSON */ }
+        return raw
+      }
 
-        // Decide cumulative vs delta:
-        // If incoming looks like a prefix-extension of accum, treat as cumulative
-        if (incoming.length >= accum.length && incoming.startsWith(accum)) {
-          accum = incoming
-          commit()
-          return
-        }
-
-        // If accum appears inside incoming (some servers resend with minor variance)
-        const idx = incoming.indexOf(accum)
-        if (idx === 0 || (idx > 0 && idx < incoming.length)) {
-          accum = incoming.slice(0) // replace completely
-          commit()
-          return
-        }
-
-        // Otherwise treat as delta; trim obvious duplicate boundary
-        const delta = dedupeBoundary(accum, incoming)
-        if (delta) {
-          accum += delta
-          commit()
-        }
+      function onPayload(raw: string) {
+        if (!raw || raw === '[DONE]') return
+        const incoming = extractContent(raw)
+        accum = mergeWithOverlap(accum, incoming)
+        commit()
       }
 
       while (!done) {
@@ -107,99 +151,123 @@ export default function Chat() {
         const chunk = value ? decoder.decode(value, { stream: !done }) : ''
         if (!chunk) continue
 
-        // If the stream uses SSE, split on newlines and collect data: lines.
         buffer += chunk
-        let lineBreakIndex: number
-        while ((lineBreakIndex = buffer.indexOf('\n')) !== -1) {
-          const line = buffer.slice(0, lineBreakIndex).trimEnd()
-          buffer = buffer.slice(lineBreakIndex + 1)
 
+        let nl: number
+        let sawSSE = false
+        while ((nl = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, nl).trimEnd()
+          buffer = buffer.slice(nl + 1)
           if (line.startsWith('data:')) {
+            sawSSE = true
             const payload = line.slice(5).trim()
-            if (!payload || payload === '[DONE]') continue
-            onPayload(payload)
-          } else if (line === '') {
-            // ignore keep-alives
-          } else {
-            // Non-SSE line; treat as plain text payload
-            onPayload(line)
+            if (payload) onPayload(payload)
           }
         }
 
-        // If it’s not SSE at all (just raw text), process the chunk directly
-        if (!chunk.includes('data:') && !chunk.includes('\n')) {
-          onPayload(chunk)
+        if (!sawSSE && !chunk.includes('data:')) {
+          const parts = chunk.split(/\r?\n/).filter(Boolean)
+          if (parts.length > 1) {
+            for (const p of parts) onPayload(p)
+          } else {
+            onPayload(chunk)
+          }
         }
       }
 
-      // flush any remainder in buffer (last line without newline)
-      if (buffer.trim()) onPayload(buffer.trim())
-
-    } catch (e) {
-      setMessages(m => [...m, { role: 'assistant', content: 'Error contacting backend.' }])
+      const tail = buffer.trim()
+      if (tail) onPayload(tail)
+    } catch {
+      setMessages((m): Msg[] => [...m, { role: 'assistant' as const, content: 'Error contacting backend.' }])
     } finally {
       setLoading(false)
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      aiIndexRef.current = null
     }
   }
 
   return (
-    <div className="min-h-[70vh] flex flex-col">
-      <h1 className="text-lg font-medium tracking-tight mb-4">
-        {process.env.NEXT_PUBLIC_SITE_NAME || 'RAG Client'}
-      </h1>
+    <>
+      <main className="mx-auto max-w-3xl px-4">
+        <div className="pb-[calc(92px+env(safe-area-inset-bottom))] space-y-6">
+          {messages.length === 0 ? (
+            <div className="text-center pt-24">
+              <h1 className="text-4xl font-bold">Cashflow Depot RAG</h1>
+              <p className="text-neutral-500 mt-2">
+                Ask a question to get started.
+              </p>
+            </div>
+          ) : (
+            messages.map((m, i) => (
+              <div
+                key={i}
+                className={
+                  m.role === 'user'
+                    ? 'flex justify-end max-w-full'
+                    : 'flex justify-start max-w-full'
+                }
+              >
+                {m.role === 'user' ? (
+                  <div className="rounded-xl px-4 py-3 max-w-[75%] text-left bg-[var(--bubble)] border border-[var(--composer-border)]">
+                    {m.content}
+                  </div>
+                ) : (
+                  <div className="prose dark:prose-invert max-w-[80%] text-left">
+                    {m.content ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={mdComponents}
+                      >
+                        {normalizeMarkdown(m.content)}
+                      </ReactMarkdown>
+                    ) : (
+                      <LoadingIndicator />
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </main>
 
-      <div className="flex-1 space-y-6">
-        {messages.map((m: Msg, i: number) => (
-          <div
-            key={i}
-            className={m.role === 'user'
-              ? 'flex justify-end max-w-full'
-              : 'flex justify-start max-w-full'}
-          >
-            {m.role === 'user' ? (
-              <div className="rounded-xl px-4 py-3 bubble max-w-[75%] text-left">
-                {m.content}
-              </div>
-            ) : (
-              <div className="whitespace-pre-wrap max-w-[80%] text-left">
-                {m.content}
-              </div>
-            )}
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-[var(--composer-bg)] border-t border-[var(--composer-border)]">
+        <div className="mx-auto max-w-3xl px-4 py-3">
+          <div className="flex items-end gap-2 rounded-xl px-3 py-2 bg-[var(--bubble)] border border-[var(--composer-border)] shadow-lg">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              rows={1}
+              placeholder="Type your message…"
+              className="flex-1 bg-transparent text-[var(--fg)] placeholder:text-[var(--placeholder-fg)] outline-none resize-none leading-6"
+            />
+            <button
+              onClick={handleSend}
+              disabled={loading || !input.trim()}
+              aria-label="Send"
+              title="Send"
+              className={[
+                'flex items-center justify-center',
+                'h-9 w-9 rounded-full',
+                'border border-neutral-400',
+                loading || !input.trim()
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:opacity-80',
+              ].join(' ')}
+            >
+              ↑
+            </button>
           </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="sticky bottom-0 mt-6">
-        <div className="flex items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 px-3 py-2 bg-transparent">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-            }}
-            rows={1}
-            placeholder="Type your message…"
-            className="flex-1 bg-transparent outline-none resize-none"
-          />
-          <button
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-            aria-label="Send"
-            title="Send"
-            className={[
-              'flex items-center justify-center',
-              'h-9 w-9 rounded-full',
-              'border border-black/20 dark:border-white/20',
-              'bg-transparent',
-              (loading || !input.trim()) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'
-            ].join(' ')}
-          >
-            ↑
-          </button>
+          <div className="h-[env(safe-area-inset-bottom)]" />
         </div>
       </div>
-    </div>
+    </>
   )
 }

@@ -1,26 +1,25 @@
 @import "tailwindcss";
 
-/* Light/Dark theme via CSS variables (v4-friendly) */
 :root {
-  --bg: #FAFAFA;       /* light background */
-  --fg: #0A0A0A;       /* light text */
-  --bubble: #EDEDED;   /* light user bubble */
+  --bg: #F8F8F8;
+  --fg: #0A0A0A;
+  --bubble: #E5E5E5;
+  --composer-bg: #FFFFFF;
+  --composer-border: #E5E7EB;
+  --placeholder-fg: #6b7280; 
 }
 
 .dark {
-  --bg: #0A0A0A;       /* dark background */
-  --fg: #FAFAFA;       /* dark text */
-  --bubble: #1E1E1E;   /* dark user bubble */
+  --bg: #0A0A0A;
+  --fg: #FAFAFA;
+  --bubble: #1E1E1E;
+  --composer-bg: #0A0A0A;
+  --composer-border: #374151;
+  --placeholder-fg: #9ca3af;
 }
 
-/* Base styles */
 html, body {
   min-height: 100%;
   background: var(--bg);
   color: var(--fg);
-}
-
-/* Utility hooks for later */
-.bubble {
-  background: var(--bubble);
 }
