@@ -5,7 +5,7 @@ import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { DetailedHTMLProps, HTMLAttributes } from 'react'
 
-type Msg = { role: 'user' | 'assistant'; content: string }
+type Msg = { role: 'user' | 'assistant'; content: string };
 
 // This is the "thinking" animation.
 const LoadingIndicator = () => (
@@ -17,14 +17,14 @@ const LoadingIndicator = () => (
 )
 
 
-type CodeProps = {
+type CodeProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
   inline?: boolean
   className?: string
   children?: React.ReactNode
-} & DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+}
 
 const mdComponents: Components = {
-  a: ({ ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+  a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
   code: ({ inline, className, children, ...props }: CodeProps) => {
     if (inline) {
       return (
@@ -43,7 +43,7 @@ const mdComponents: Components = {
         </code>
       </pre>
     )
-  }
+  },
 }
 
 // This is our smart interpreter. It fixes the AI's lazy markdown.
@@ -78,30 +78,36 @@ export default function Chat() {
   }, [messages])
 
   async function handleSend() {
-    if (!input.trim() || loading) return
+  if (!input.trim() || loading) return
 
-    const text = input.trim()
-    setInput('')
-    setLoading(true)
+  const text = input.trim()
+  setInput('')
+  setLoading(true)
 
-    const userMsg: Msg = { role: 'user', content: text }
-    setMessages((prev): Msg[] => {
-      const next = [...prev, userMsg, { role: 'assistant' as const, content: '' }]
-      aiIndexRef.current = next.length - 1
-      return next
+  const userMsg: Msg = { role: 'user', content: text }
+
+  setMessages((prev: Msg[]): Msg[] => {
+    const next: Msg[] = [...prev, userMsg, { role: 'assistant', content: '' }]
+    aiIndexRef.current = next.length - 1
+    return next
+  })
+
+  try {
+    const history: Msg[] = [...messages, userMsg]
+
+    // 🔧 Force the mapped array to stay Msg[]
+    const payloadHistory: Msg[] = history.map(({ role, content }): Msg => ({ role, content }))
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL as string
+
+    const res = await fetch(`${API_BASE}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: text,
+        chat_history: payloadHistory,
+      }),
     })
-
-    try {
-      const history = [...messages, userMsg]
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: text,
-          chat_history: history.map(({ role, content }) => ({ role, content })),
-        }),
-      })
       if (!res.ok || !res.body) throw new Error(`API ${res.status}`)
 
       const reader = res.body.getReader()
@@ -247,8 +253,8 @@ export default function Chat() {
           <div className="flex items-end gap-2 rounded-xl px-3 py-2 bg-[var(--bubble)] border border-[var(--composer-border)] shadow-lg">
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)}
+              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
                   handleSend()
