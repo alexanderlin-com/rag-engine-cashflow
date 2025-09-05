@@ -27,7 +27,7 @@ load_dotenv()
 # These are initialized once when the server starts up. This is efficient
 # because they are reused across all API requests without being re-created.
 llm = ChatOpenAI(
-    model="gpt-4-turbo",
+    model="gpt-5",
     temperature=0,
     api_key=os.environ.get("OPENAI_API_KEY")
 )
