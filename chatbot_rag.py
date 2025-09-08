@@ -2,6 +2,10 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
+from openai import RateLimitError, APIError
+import time
+
 
 # import pinecone
 from pinecone import Pinecone, ServerlessSpec
@@ -25,6 +29,7 @@ index = pc.Index(index_name)
 
 # initialize embeddings model + vector store
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large",api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 vector_store = PineconeVectorStore(index=index, embedding=embeddings)
 
 # initialize chat history
@@ -92,10 +97,58 @@ if prompt:
     messages_for_llm.append(HumanMessage(prompt))
 
 
-    # 6. Invoke the LLM with the clean, temporary payload
-    result = llm.invoke(messages_for_llm).content
-
-    # 7. Add only the AI's response to the session state and display it
-    st.session_state.messages.append(AIMessage(result))
+    # 6. Stream tokens from OpenAI and render incrementally
+    assistant_text = ""
     with st.chat_message("assistant"):
-        st.markdown(result)
+        placeholder = st.empty()
+        try:
+            # Build raw OpenAI messages (we've already constructed system_prompt & prompt above)
+            messages_openai = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ]
+
+            # Start the streamed completion
+            stream = client.chat.completions.create(
+                model="gpt-4o",           # or "gpt-4o-mini" to save $/latency
+                temperature=0.7,
+                messages=messages_openai,
+                stream=True,
+            )
+
+            for chunk in stream:
+                # The streamed delta lives here (guard for empty deltas)
+                delta = ""
+                try:
+                    delta = chunk.choices[0].delta.content or ""
+                except Exception:
+                    # Some SDK versions use .text for delta; keep it resilient
+                    delta = getattr(chunk.choices[0], "text", "") or ""
+
+                if delta:
+                    assistant_text += delta
+                    placeholder.markdown(assistant_text)
+                else:
+                    # tiny yield to keep UI responsive
+                    time.sleep(0.001)
+
+            # 7. Persist the final assistant message in chat history
+            st.session_state.messages.append(AIMessage(assistant_text))
+
+        except RateLimitError:
+            err = "OpenAI quota exceeded. Add credits or switch provider."
+            placeholder.error(err)
+            st.session_state.messages.append(AIMessage(err))
+        except APIError as e:
+            err = f"OpenAI API error: {e}"
+            placeholder.error(err)
+            st.session_state.messages.append(AIMessage(err))
+        except Exception as e:
+            err = f"Unexpected error: {e}"
+            placeholder.error(err)
+            st.session_state.messages.append(AIMessage(err))
+
+    # with st.expander("Sources"):
+    #     for i, d in enumerate(docs, start=1):
+    #         st.markdown(f"**{i}.** {d.metadata.get('source','(unknown)')}")
+
