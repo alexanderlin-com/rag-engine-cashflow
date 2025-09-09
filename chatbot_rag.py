@@ -64,7 +64,7 @@ if prompt:
     # --- This is where the real work happens ---
 
     # 1. Initialize the LLM (you can even do this once outside the loop)
-    llm = ChatOpenAI(model="gpt-5", temperature=1) # Temp 1 is for creative writing, not Q&A. Control it.(4o, temp 1 is only support for 5)
+    llm = ChatOpenAI(model="gpt-4o", temperature=0.7) # Temp 1 is for creative writing, not Q&A. Control it.(4o, temp 1 is only support for 5)
 
     # 2. Create the retriever
     retriever = vector_store.as_retriever(
@@ -110,8 +110,8 @@ if prompt:
 
             # Start the streamed completion
             stream = client.chat.completions.create(
-                model="gpt-5",           # or "gpt-5-mini" / "gpt-5-nano" if desired
-                temperature=1,
+                model="gpt-4o",           # or "gpt-5-mini" / "gpt-5-nano" if desired
+                temperature=0.7,
                 messages=messages_openai,
                 stream=True,
             )
